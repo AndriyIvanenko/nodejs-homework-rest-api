@@ -20,7 +20,7 @@ describe('login', () => {
 
   it('login with invalid email or password', async () => {
     const response = await request(app).get('/api/users/login').send({
-      email: 'user1_email.com',
+      email: 'user1@email.com',
       password: '12',
     });
     expect(response.statusCode).toBe(400);
