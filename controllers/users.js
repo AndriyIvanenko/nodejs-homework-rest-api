@@ -13,13 +13,18 @@ const { STATIC_URL, PORT } = process.env;
 
 async function registration(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const { email, password, verificationToken } = req.body;
     const avatarURL = gravatar.url(email, { s: '250', r: 'x', d: 'retro' }, true);
 
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = await User.create({ email, password: hashedPassword, avatarURL });
+    const newUser = await User.create({
+      email,
+      password: hashedPassword,
+      avatarURL,
+      verificationToken,
+    });
     const responseData = {
       user: {
         email,
@@ -120,6 +125,8 @@ async function changeAvatar(req, res, next) {
   res.status(200).json(user.avatarURL);
 }
 
+async function userVerification(req, res, next) {}
+
 module.exports = {
   registration,
   login,
@@ -127,4 +134,5 @@ module.exports = {
   logout,
   updateSubscription,
   changeAvatar,
+  userVerification,
 };
