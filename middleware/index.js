@@ -54,7 +54,6 @@ const upload = multer({
 });
 
 async function sendConfirmationEmail(req, res, next) {
-  sendgridMail.setApiKey(SENDGRID_API_KEY);
   const verificationToken = nanoid();
   req.body.verificationToken = verificationToken;
   const to = req.body.email;
@@ -67,6 +66,9 @@ async function sendConfirmationEmail(req, res, next) {
     text: 'test',
   };
 
+  // -----------------SANDGRID--------------------------
+
+  sendgridMail.setApiKey(SENDGRID_API_KEY);
   try {
     const response = await sendgridMail.send(email);
     console.log(response);
@@ -74,6 +76,8 @@ async function sendConfirmationEmail(req, res, next) {
   } catch (error) {
     next(error);
   }
+
+  // -----------------NODEMAILER-----------------------
 
   // const transport = nodemailer.createTransport({
   //   host: 'sandbox.smtp.mailtrap.io',
