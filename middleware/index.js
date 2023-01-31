@@ -5,10 +5,12 @@ const { User } = require('../models/user');
 const multer = require('multer');
 const path = require('path');
 
+// const nodemailer = require('nodemailer');
 const sendgridMail = require('@sendgrid/mail');
 const { nanoid } = require('nanoid');
 
 const { JWT_SECRET, SENDGRID_API_KEY, PORT } = process.env;
+// const { MAILTRAP_PASSWORD } = process.env;
 
 async function authorization(req, res, next) {
   const authHeader = req.headers.authorization || '';
@@ -51,27 +53,44 @@ const upload = multer({
   storage,
 });
 
-function sendConfirmationEmail(req, res, next) {
+async function sendConfirmationEmail(req, res, next) {
   sendgridMail.setApiKey(SENDGRID_API_KEY);
   const verificationToken = nanoid();
   req.body.verificationToken = verificationToken;
+  const to = req.body.email;
 
   const email = {
-    to: 'andriy.ivanenko@gmail.com',
+    to,
     from: 'andriy.ivanenko@gmail.com',
     subject: 'Please confirm your e-mail address',
-    html: `<h3>For confirmation your e-mail address click link below</h3> <a href="http://localhost:${PORT}/api/users/verify/:${verificationToken}">Confirm your email</a>`,
+    html: `<h3>For confirmation your e-mail address click link below</h3> <a href="http://localhost:${PORT}/api/users/verify/${verificationToken}">Confirm your email</a>`,
     text: 'test',
   };
-  sendgridMail
-    .send(email)
-    .then(() => {
-      console.log('Email sent');
-      next();
-    })
-    .catch(error => {
-      console.error(error);
-    });
+
+  try {
+    const response = await sendgridMail.send(email);
+    console.log(response);
+    next();
+  } catch (error) {
+    next(error);
+  }
+
+  // const transport = nodemailer.createTransport({
+  //   host: 'sandbox.smtp.mailtrap.io',
+  //   port: 2525,
+  //   auth: {
+  //     user: '596bce0032e1e1',
+  //     pass: MAILTRAP_PASSWORD,
+  //   },
+  // });
+
+  // try {
+  //     const response = await transport.sendMail(email);
+  //     console.log(response);
+  //     next();
+  // } catch (error) {
+  //   next(error)
+  // }
 }
 
 module.exports = {

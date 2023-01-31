@@ -30,6 +30,6 @@ usersRouter.patch(
   upload.single('avatar'),
   tryCatchWrapper(changeAvatar)
 );
-usersRouter.get('/verify/:verificationToken', tryCatchWrapper(userVerification));
+usersRouter.get('/verify/:verificationToken', userVerification);
 
 module.exports = usersRouter;

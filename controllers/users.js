@@ -51,6 +51,10 @@ async function login(req, res, next) {
       throw new HttpError(401, 'Email or password is wrong');
     }
 
+    if (!storedUser.verify) {
+      throw new HttpError(401, 'Email is not confirmed, please check your email box');
+    }
+
     const isPasswordValid = await bcrypt.compare(password, storedUser.password);
     if (!isPasswordValid) {
       throw new HttpError(401, 'Email or password is wrong');
@@ -125,7 +129,24 @@ async function changeAvatar(req, res, next) {
   res.status(200).json(user.avatarURL);
 }
 
-async function userVerification(req, res, next) {}
+async function userVerification(req, res, next) {
+  const { verificationToken } = req.params;
+  const user = await User.findOne({ verificationToken });
+
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+
+  try {
+    await User.findByIdAndUpdate(user._id, {
+      verify: true,
+      verificationToken: '',
+    });
+    res.status(200).json({ message: 'Verification successful' });
+  } catch (error) {
+    next(error);
+  }
+}
 
 module.exports = {
   registration,
