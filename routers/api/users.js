@@ -7,19 +7,15 @@ const {
   updateSubscription,
   changeAvatar,
   userVerification,
+  secondVerificationEmailSend,
 } = require('../../controllers/users');
 const { tryCatchWrapper } = require('../../helpers');
-const { authorization, upload, sendConfirmationEmail } = require('../../middleware');
-const { userValidation } = require('../../validation/user');
+const { authorization, upload } = require('../../middleware');
+const { userValidation, emailValidation } = require('../../validation/user');
 
 const usersRouter = express.Router();
 
-usersRouter.post(
-  '/register',
-  userValidation,
-  sendConfirmationEmail,
-  tryCatchWrapper(registration)
-);
+usersRouter.post('/register', userValidation, tryCatchWrapper(registration));
 usersRouter.get('/login', userValidation, tryCatchWrapper(login));
 usersRouter.get('/current', tryCatchWrapper(authorization), tryCatchWrapper(currentUser));
 usersRouter.post('/logout', tryCatchWrapper(authorization), tryCatchWrapper(logout));
@@ -31,5 +27,6 @@ usersRouter.patch(
   tryCatchWrapper(changeAvatar)
 );
 usersRouter.get('/verify/:verificationToken', userVerification);
+usersRouter.post('/verify', emailValidation, secondVerificationEmailSend);
 
 module.exports = usersRouter;
