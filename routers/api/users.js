@@ -6,10 +6,12 @@ const {
   logout,
   updateSubscription,
   changeAvatar,
+  userVerification,
+  secondVerificationEmailSend,
 } = require('../../controllers/users');
 const { tryCatchWrapper } = require('../../helpers');
 const { authorization, upload } = require('../../middleware');
-const { userValidation } = require('../../validation/user');
+const { userValidation, emailValidation } = require('../../validation/user');
 
 const usersRouter = express.Router();
 
@@ -24,5 +26,7 @@ usersRouter.patch(
   upload.single('avatar'),
   tryCatchWrapper(changeAvatar)
 );
+usersRouter.get('/verify/:verificationToken', userVerification);
+usersRouter.post('/verify', emailValidation, secondVerificationEmailSend);
 
 module.exports = usersRouter;

@@ -9,23 +9,34 @@ const Jimp = require('jimp');
 const fs = require('fs');
 const path = require('path');
 
+const { sendConfirmationEmail } = require('../helpers');
+const { nanoid } = require('nanoid');
+
 const { STATIC_URL, PORT } = process.env;
 
 async function registration(req, res, next) {
-  try {
-    const { email, password } = req.body;
-    const avatarURL = gravatar.url(email, { s: '250', r: 'x', d: 'retro' }, true);
+  const { email, password } = req.body;
+  const avatarURL = gravatar.url(email, { s: '250', r: 'x', d: 'retro' }, true);
+  const verificationToken = nanoid();
 
+  try {
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const newUser = await User.create({ email, password: hashedPassword, avatarURL });
+    const newUser = await User.create({
+      email,
+      password: hashedPassword,
+      avatarURL,
+      verificationToken,
+    });
     const responseData = {
       user: {
         email,
         subscription: newUser.subscription,
       },
     };
+
+    sendConfirmationEmail(email, verificationToken, next);
 
     res.status(201).json({ ...responseData });
   } catch (error) {
@@ -44,6 +55,10 @@ async function login(req, res, next) {
     const storedUser = await User.findOne({ email });
     if (!storedUser) {
       throw new HttpError(401, 'Email or password is wrong');
+    }
+
+    if (!storedUser.verify) {
+      throw new HttpError(401, 'Email is not confirmed, please check your email box');
     }
 
     const isPasswordValid = await bcrypt.compare(password, storedUser.password);
@@ -77,8 +92,12 @@ async function currentUser(req, res, next) {
 async function logout(req, res, next) {
   const { id } = req.user;
 
-  await User.findByIdAndUpdate(id, { token: null });
-  res.status(204).json();
+  try {
+    await User.findByIdAndUpdate(id, { token: null });
+    res.status(204).json();
+  } catch (error) {
+    next(error);
+  }
 }
 
 async function updateSubscription(req, res, next) {
@@ -89,8 +108,12 @@ async function updateSubscription(req, res, next) {
     throw new HttpError(400, 'Subscription must be < starter >, < pro > or < business >');
   }
 
-  await User.findByIdAndUpdate(id, { subscription });
-  res.status(201).json({ message: `Suscription updated to < ${subscription} >` });
+  try {
+    await User.findByIdAndUpdate(id, { subscription });
+    res.status(201).json({ message: `Suscription updated to < ${subscription} >` });
+  } catch (error) {
+    next(error);
+  }
 }
 
 async function changeAvatar(req, res, next) {
@@ -115,9 +138,54 @@ async function changeAvatar(req, res, next) {
       throw new Error(error);
     });
 
-  const avatarURL = STATIC_URL + PORT + '/avatars/' + newFilename;
-  const user = await User.findByIdAndUpdate(id, { avatarURL: avatarURL }, { new: true });
-  res.status(200).json(user.avatarURL);
+  try {
+    const avatarURL = STATIC_URL + PORT + '/avatars/' + newFilename;
+    const user = await User.findByIdAndUpdate(id, { avatarURL: avatarURL }, { new: true });
+    res.status(200).json(user.avatarURL);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function userVerification(req, res, next) {
+  const { verificationToken } = req.params;
+  try {
+    const user = await User.findOne({ verificationToken });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    await User.findByIdAndUpdate(user._id, {
+      verify: true,
+      verificationToken: '',
+    });
+    res.status(200).json({ message: 'Verification successful' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function secondVerificationEmailSend(req, res, next) {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Missing required field email' });
+  }
+
+  try {
+    const user = await User.findOne({ email });
+
+    if (user.verify) {
+      return res.status(400).json({ message: 'Verification has already been passed' });
+    }
+
+    const token = user.verificationToken;
+    sendConfirmationEmail(email, token, next);
+    res.status(200).json({ message: 'Verification email sent' });
+  } catch (error) {
+    next(error);
+  }
 }
 
 module.exports = {
@@ -127,4 +195,6 @@ module.exports = {
   logout,
   updateSubscription,
   changeAvatar,
+  userVerification,
+  secondVerificationEmailSend,
 };
